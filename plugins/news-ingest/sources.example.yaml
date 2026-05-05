@@ -1,0 +1,41 @@
+# news-ingest plugin — reference source configuration
+#
+# This is a worked example. Real deployments should:
+#   1. Copy this file into your private partyclip-deploy repo
+#   2. Replace the URLs with sources you actually want to track
+#   3. Reference auth_secret_ref entries from your deployment secrets
+#      provider — never inline tokens here
+#
+# Phase 1 only supports JSON Feed (https://jsonfeed.org/version/1.1).
+# RSS/Atom is on the roadmap but not in v0.
+#
+# See packages/plugins/news-ingest/src/sources.ts for the full schema.
+
+sources:
+  # A canonical JSON Feed (Manton Reece's blog — used as the spec example)
+  - id: micro-blog
+    kind: json_feed
+    url: https://manton.org/feed.json
+    label: micro.blog announcements
+    max_items_per_fetch: 25
+    timeout_seconds: 15
+
+  # A government / regulator feed example. Replace with your jurisdiction.
+  # Many official sites publish JSON Feed alongside RSS; check the page source.
+  - id: example-gov-press
+    kind: json_feed
+    url: https://example.gov/press/feed.json
+    label: Example Gov press releases
+    max_items_per_fetch: 50
+    timeout_seconds: 20
+
+  # A source requiring authentication. The plugin resolves the secret
+  # via ctx.secrets at fetch time; the bearer token never lands on disk.
+  # The secret named here must exist in the deployment's secrets provider.
+  - id: paywalled-newsroom
+    kind: json_feed
+    url: https://newsroom.example.com/v2/feed.json
+    label: Paywalled Newsroom
+    max_items_per_fetch: 30
+    timeout_seconds: 20
+    auth_secret_ref: NEWSROOM_API_TOKEN
