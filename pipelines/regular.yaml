@@ -1,0 +1,80 @@
+# Regular patch pipeline — the Phase 1 reference
+#
+# Full 7-stage definition matching docs/handoff/04_PIPELINE.md.
+# Schema and constraints in
+# packages/shared/src/types/pipeline.ts.
+#
+# Real deployments either copy this file as-is into their content
+# repo, or override per-stage timeouts/models for their cost
+# tolerance.
+
+id: regular
+name: Regular patch pipeline
+applies_to: [REGULAR]
+
+# Aggregate cost cap across all stage runs for one patch. Phase 1
+# default; tune per deployment. Crossing this cap kills the patch
+# with reason_code BUDGET_EXCEEDED.
+max_cost_per_patch: 25
+
+# If a patch sits at AWAITING_SIGNOFF this long without operator
+# activity, the system *pauses generation* (does not auto-approve)
+# and notifies. See server/src/services/operator-actions/auto-escalation.ts.
+operator_inactivity_pause_days: 7
+
+stages:
+  - id: drafting
+    agent_role: Architect
+    timeout_minutes: 30
+    retry_policy:
+      max_attempts: 2
+      initial_backoff: 0
+    # Tier model down for first drafts; the Bias Mirror at the end is
+    # where we never compromise. See agents/architect.md.
+    model: claude-sonnet-4-6
+
+  - id: critique
+    agent_role: Critic
+    decision: binary
+    timeout_minutes: 10
+    retry_policy:
+      max_attempts: 2
+      initial_backoff: 0
+    on_reject:
+      goto: drafting
+      with_reason: true
+
+  - id: risk_assess
+    agent_role: Legal
+    timeout_minutes: 15
+    retry_policy:
+      max_attempts: 2
+      initial_backoff: 0
+    on_reject:
+      goto: drafting
+      with_reason: true
+
+  - id: executor
+    agent_role: Executor
+    timeout_minutes: 30
+    retry_policy:
+      max_attempts: 2
+      initial_backoff: 0
+
+  - id: bias_mirror
+    agent_role: BiasMirror
+    timeout_minutes: 30
+    retry_policy:
+      max_attempts: 2
+      initial_backoff: 0
+    # Never compromise on the auditor model.
+    model: claude-opus-4-7
+    on_block:
+      goto: drafting
+      with_reason: true
+
+  - id: awaiting_signoff
+    gate: operator
+    # operator gate — no agent_role, no timeout (operators take
+    # however long they take). Auto-escalation lives at the
+    # pipeline level via operator_inactivity_pause_days.
