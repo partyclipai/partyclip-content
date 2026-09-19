@@ -1,0 +1,17 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.tmp
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Development artifacts (notes, plans, scratchpads, internal docs)
+# Visible to local tools (Claude, editors) but never committed.
+.dev/
+_private/
